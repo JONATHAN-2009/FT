@@ -77,35 +77,20 @@ export async function generateSportsBriefing(sports: string[], searchQuery?: str
     }
 }
 
-// FIX: This function now uses the Gemini API for image generation.
-export async function generateBriefingImage(briefingText: string): Promise<string> {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        throw new Error("API Key is missing. Please set it in your environment variables.");
-    }
-    const ai = new GoogleGenAI({ apiKey });
+// FIX: This function now uses pollinations.ai to avoid the Gemini billing error.
+export function generateBriefingImage(briefingText: string): string {
+    const sanitizedText = briefingText
+        .replace(/\s+/g, ' ') // Replace multiple spaces/newlines with a single space
+        .trim()
+        .substring(0, 250); // Keep it concise for the prompt
 
-    const prompt = `Epic, cinematic, vibrant, dynamic digital painting representing the following sports news: "${briefingText.substring(0, 250)}...". Abstract and energetic style, capturing the motion and emotion of sports. A masterpiece, hyper-detailed, trending on ArtStation. No text or words in the image. Focus on dynamic shapes, dramatic lighting, and evocative team colors.`;
+    const artisticPrompt = `Epic, cinematic, vibrant, dynamic digital painting representing the following sports news: "${sanitizedText}...". Abstract and energetic style, capturing the motion and emotion of sports. A masterpiece, hyper-detailed, trending on ArtStation. No text or words in the image. Focus on dynamic shapes, dramatic lighting, and evocative team colors.`;
+    
+    const encodedPrompt = encodeURIComponent(artisticPrompt);
+    
+    // Use a random seed to ensure a new image is generated each time
+    const seed = Math.floor(Math.random() * 1000000);
 
-    try {
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/jpeg',
-              aspectRatio: '16:9',
-            },
-        });
-
-        if (!response.generatedImages || response.generatedImages.length === 0) {
-            throw new Error("Image generation failed, no images were returned.");
-        }
-
-        const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-        return `data:image/jpeg;base64,${base64ImageBytes}`;
-
-    } catch (error) {
-        throw processGeminiError(error, "briefing image");
-    }
+    // Return the full URL for the image, using high resolution as requested
+    return `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&width=2560&height=1440&seed=${seed}`;
 }
